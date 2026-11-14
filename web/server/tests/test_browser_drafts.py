@@ -1354,6 +1354,48 @@ def test_a_sale_picks_its_lots_in_the_dialog(browser, household):
     page.close()
 
 
+def test_bitcoin_is_typed_in_sats_when_the_person_counts_in_sats(browser, household):
+    # S1.6.4, #58: chosen in Profile, sats are what a bitcoin trade's quantity, its lots and
+    # its picks show and take, whole; the record holds BTC. The unit is put back after.
+    h = household
+    me = h.c.get("/ui/api/profile").json()
+    saved(change(h.c, "User", me, bitcoinUnit="sats"))
+    try:
+        acct = made(make(h.c, "Acct", name="Sat desk", type="crypto-exchange"))
+        for day in (f"{months_back(6)}-03", f"{months_back(4)}-03"):
+            saved(create(h.c, "Txn", accountId=acct["id"], date=day, kind="buy", symbol="BTC",
+                         quantity="0.5", price="60000", amount="-30000.00"))  # fmt: skip
+        newer = f"{months_back(4)}-03"
+        path = f"/ui/accounts/{acct['id']}/transactions"
+        page, problems = signed_in(browser, h, path, 'main button:has-text("Add")')
+        page.click('main button:has-text("Add")')
+        wait(page, ".dialog footer button.primary:enabled", problems)
+        page.select_option("#f-kind", "sell")
+        page.fill("#f-date", f"{months_back(1)}-03")
+        page.fill("#f-symbol", "BTC")
+        quantity = page.locator("#f-quantity")
+        wait(page, '.dialog .field:has(#f-quantity) :text-is("sats")', problems)
+        quantity.fill("60000000")
+        page.fill("#f-price", "70000")
+        page.fill("#f-amount", "42000.00")
+        take = f'[aria-label="Take from the lot bought {newer}"]'
+        wait(page, take, problems)
+        held = page.locator(f".dialog tr:has({take}) td.num").first.inner_text()
+        assert held == "50,000,000 sats", held
+        page.fill(take, "40000000")
+        wait(page, '.dialog :text("40,000,000 sats of 60,000,000 sats picked")', problems)
+        page.click(".dialog footer button.primary")
+        wait(page, ".dialog", problems, state="detached")
+        items = h.c.get("/ui/api/transactions", params={"account": acct["id"]}).json()["items"]
+        (sale,) = [x for x in items if x["kind"] == "sell"]
+        assert Decimal(str(sale["quantity"])) == Decimal("0.6")
+        assert [Decimal(str(p["quantity"])) for p in sale["picks"]] == [Decimal("0.4")]
+        assert problems == []
+        page.close()
+    finally:
+        saved(change(h.c, "User", h.c.get("/ui/api/profile").json(), bitcoinUnit="btc"))
+
+
 def test_an_options_end_takes_a_count_from_1_to_those_held(browser, household):
     # CR3-403, R3.11: the settle dialog's Contracts starts empty; 0 is marked when the field is
     # left (and refused if saved); All fills in the contracts held and greys out; Record settles
