@@ -296,17 +296,14 @@ def test_privacy_mode_blurs_amounts(page):
 
 def test_a_moment_shows_its_day_in_the_viewers_zone(page):
     """S14.9: a moment's day and "today" are the viewer's; a calendar date never shifts. Late
-    on Oct 18 in Los Angeles is already Oct 19 in UTC. (A module of its own, by its query, so
-    the page's zone is left as it is.)"""
+    on Oct 18 in Los Angeles is already Oct 19 in UTC. The zone is passed, never held."""
     got = page.evaluate("""async () => {
         const main = document.querySelector('script[src$="/app/main.js"]').src;
-        const f = await import(new URL('../kit/format.js?zone-test', main).href);
-        f.setTimezone('America/Los_Angeles');
-        const days = [f.day('2026-10-19T00:26:00Z'), f.date('2026-10-19'), f.day(null)];
-        f.setTimezone('Pacific/Kiritimati');
-        const ahead = [f.today(), f.thisYear()];
-        f.setTimezone('Etc/GMT+12');
-        return { days, ahead, behind: f.today() };
+        const f = await import(new URL('../kit/format.js', main).href);
+        const la = 'America/Los_Angeles';
+        const days = [f.day('2026-10-19T00:26:00Z', la), f.date('2026-10-19'), f.day(null, la)];
+        const ahead = [f.today('Pacific/Kiritimati'), f.thisYear('Pacific/Kiritimati')];
+        return { days, ahead, behind: f.today('Etc/GMT+12') };
     }""")
     assert got["days"] == ["Oct 18, 2026", "Oct 19, 2026", "—"]
     ahead, year = got["ahead"]
