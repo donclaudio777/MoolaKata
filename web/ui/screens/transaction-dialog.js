@@ -16,7 +16,8 @@ import { NewRuleDialog } from '../components/rules.js';
 import { Field, Seg, Switch, SwitchRow, TypedInput } from '../kit/fields.js';
 import { Reads, useReadWhy } from '../components/reads.js';
 import { Icon } from '../kit/icon.js';
-import { date as fmtDate, money, today } from '../kit/format.js';
+import { date as fmtDate, money } from '../kit/format.js';
+import { useFormats } from '../kit/formats.js';
 import { CategoryField, useCategories } from '../components/categories.js';
 import { BY_TYPE } from '../account-types/index.js';
 import { TagsField } from '../components/tags.js';
@@ -239,6 +240,7 @@ class Pick extends Record {
  *   accountId?: string, fromRow?: boolean, budgets?: boolean }} p
  */
 export function TransactionDialog({ close, txn, start, accounts, accountId, fromRow, budgets }) {
+  const fmt = useFormats();
   useDialogGuide('dialog-transaction');
   const editing = !!txn;
   const readOnly = editing && !txn.access.writable;
@@ -262,7 +264,7 @@ export function TransactionDialog({ close, txn, start, accounts, accountId, from
     const kind = kindsOf(acct)[0];
     const t = draft.add(Txn, {
       accountId: acct,
-      date: today(),
+      date: fmt.today(),
       kind,
       fees: TRADE.includes(kind) ? '0' : null,
     });
